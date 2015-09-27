@@ -55,28 +55,27 @@
         var path = require('path');
         var util = require('util');
 
-        // cunstruct path
-        var parsed = path.parse(doc.file);
-        parsed.base = util.format(
+        // cunstruct path (compatible with node v0.10.15)
+        var psdFileName = path.basename(doc.file);
+        var jsonFileName = util.format(
             '%s-comp%d-rev%d.json',
-            parsed.name,
-            getCurrentCompName(doc),
-            doc.count
+            path.basename(doc.file, '.psd'), // file name w/o ext
+            getCurrentCompName(doc), // layer comp name
+            doc.count // psd internal revision count
         );
-        var dir = path.format(parsed);
-
-        console.log('JSON file location: '+dir);
+        var json_path = doc.file.replace(psdFileName, jsonFileName);
+        console.log('JSON file location: '+json_path);
 
         // remove unnecessary data
         doc.layers = filterHiddenLayers(doc.layers);
         delete doc.comps;
 
         // download file
-        fs.writeFile(dir, stringify(doc), function(err) {
+        fs.writeFile(json_path, stringify(doc), function(err) {
             if(err) {
                 console.log("error"+err);
             } else {
-                console.log("The file was saved!");
+                console.log("File saved");
             }
         });
     }
