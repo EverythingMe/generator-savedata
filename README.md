@@ -1,18 +1,15 @@
-generator-getting-started
-=========================
+# Installation
 
-Adobe Generator Getting Started Tutorial - Scripting Photoshop with JavaScript via Node.js
+1. Download zip file to
 
-Follow the tutorial instructions on my blog: http://tomkrcha.com/?p=3896
+    Mac: `/Applications/Adobe Photoshop CC/Plug-ins/Generator/`
 
-Created by Tom Krcha https://twitter.com/tomkrcha
+    Windows: `Program Files/Adobe Photoshop CC/Plugin-ins/Generator/`
 
----------
-Built-in Generator log files can be found here:
+2. Restart photoshop
 
-Mac:
-/Users/[your username]/Library/Logs/Adobe/Adobe Photoshop CC/Generator
 
-Windows:
-C:\Users\[your username]\AppData\Roaming\Adobe\Adobe Photoshop
-CC\Generator\logs
+# Usage
+
+1. Click `File > Generate > Save data to file`.
+2. Find file in current PSD file location.

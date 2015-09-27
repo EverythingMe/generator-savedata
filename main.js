@@ -1,35 +1,10 @@
-/*
- * Copyright (c) 2013 Adobe Systems Incorporated. All rights reserved.
- *  
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"), 
- * to deal in the Software without restriction, including without limitation 
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, 
- * and/or sell copies of the Software, and to permit persons to whom the 
- * Software is furnished to do so, subject to the following conditions:
- *  
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *  
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
- * DEALINGS IN THE SOFTWARE.
- * 
- */
-
- // Tutorial script by Tom Krcha (Twitter: @tomkrcha)
-
 (function () {
     "use strict";
 
     var PLUGIN_ID = require("./package.json").name,
-        MENU_ID = "tutorial",
-        MENU_LABEL = "$$$/JavaScripts/Generator/Tutorial/Menu=Tutorial";
-    
+        MENU_ID = "savedata",
+        MENU_LABEL = "$$$/JavaScripts/Generator/Save data to file/Menu=Save data to file";
+
     var _generator = null,
         _currentDocumentId = null,
         _config = null;
@@ -41,7 +16,8 @@
         _config = config;
 
         console.log("initializing generator getting started tutorial with config %j", _config);
-        
+
+        // add menu item "Save data to file"
         _generator.addMenuItem(MENU_ID, MENU_LABEL, true, false).then(
             function () {
                 console.log("Menu created", MENU_ID);
@@ -49,40 +25,12 @@
                 console.error("Menu creation failed", MENU_ID);
             }
         );
+
+        // listen to menu click event
         _generator.onPhotoshopEvent("generatorMenuChanged", handleGeneratorMenuClicked);
-
-        function initLater() {
-            // Flip foreground color
-            var flipColorsExtendScript = "var color = app.foregroundColor; color.rgb.red = 255 - color.rgb.red; color.rgb.green = 255 - color.rgb.green; color.rgb.blue = 255 - color.rgb.blue; app.foregroundColor = color;";
-            sendJavascript(flipColorsExtendScript);
-
-            _generator.onPhotoshopEvent("currentDocumentChanged", handleCurrentDocumentChanged);
-            _generator.onPhotoshopEvent("imageChanged", handleImageChanged);
-            _generator.onPhotoshopEvent("toolChanged", handleToolChanged);
-            requestEntireDocument();
-            
-        }
-        
-        process.nextTick(initLater);
-
-
-
     }
 
     /*********** EVENTS ***********/
-
-    function handleCurrentDocumentChanged(id) {
-        console.log("handleCurrentDocumentChanged: "+id)
-        setCurrentDocumentId(id);
-    }
-
-    function handleImageChanged(document) {
-        console.log("Image " + document.id + " was changed:");//, stringify(document));
-    }
-
-    function handleToolChanged(document){
-        console.log("Tool changed " + document.id + " was changed:");//, stringify(document));
-    }
 
     function handleGeneratorMenuClicked(event) {
         // Ignore changes to other menus
@@ -91,53 +39,49 @@
             return;
         }
 
-        var startingMenuState = _generator.getMenuState(menu.name);
-        console.log("Menu event %s, starting state %s", stringify(event), stringify(startingMenuState));
-    }
-
-    /*********** CALLS ***********/
-
-    function requestEntireDocument(documentId) {
-        if (!documentId) {
-            console.log("Determining the current document ID");
-        }
-        
-        _generator.getDocumentInfo(documentId).then(
-            function (document) {
-                console.log("Received complete document:", stringify(document));
-            },
+        // get document data and send to save function
+        _generator.getDocumentInfo().then(save,
             function (err) {
-                console.error("[Tutorial] Error in getDocumentInfo:", err);
+                console.error("[SaveData] Error in getDocumentInfo:", err);
             }
         ).done();
     }
 
-    function updateMenuState(enabled) {
-        console.log("Setting menu state to", enabled);
-        _generator.toggleMenu(MENU_ID, true, enabled);
-    }
-
     /*********** HELPERS ***********/
 
+    // save file to file system
+    function save(doc) {
+        var fs = require('fs');
+        var path = require('path');
+        var util = require('util');
 
-    function sendJavascript(str){
-        _generator.evaluateJSXString(str).then(
-            function(result){
-                console.log(result);
-            },
-            function(err){
-                console.log(err);
-            });
+        // cunstruct path
+        var parsed = path.parse(doc.file);
+        parsed.base = util.format(
+            '%s-comp%d-rev%d.json',
+            parsed.name,
+            getCurrentCompName(doc),
+            doc.count
+        );
+        var dir = path.format(parsed);
+
+        console.log('JSON file location: '+dir);
+
+        // remove unnecessary data
+        doc.layers = filterHiddenLayers(doc.layers);
+        delete doc.comps;
+
+        // download file
+        fs.writeFile(dir, stringify(doc), function(err) {
+            if(err) {
+                console.log("error"+err);
+            } else {
+                console.log("The file was saved!");
+            }
+        });
     }
 
-    function setCurrentDocumentId(id) {
-        if (_currentDocumentId === id) {
-            return;
-        }
-        console.log("Current document ID:", id);
-        _currentDocumentId = id;
-    }
-
+    // convert json to string
     function stringify(object) {
         try {
             return JSON.stringify(object, null, "    ");
@@ -147,9 +91,43 @@
         return String(object);
     }
 
+    // return visible layers
+    function filterHiddenLayers(layers) {
+        var visibleLayers = [];
+        layers.forEach(function (layer) {
+          // when visible
+          if (layer.visible) {
+            // folder + recursion
+            if (layer.type == 'layerSection') {
+                var internalVisibleLayers = filterHiddenLayers(layer.layers);
+                visibleLayers = visibleLayers.concat(internalVisibleLayers);
+
+            // layer
+            } else  {
+                visibleLayers.push(layer);
+            }
+          }
+        });
+        return visibleLayers;
+    }
+
+    // extract current layer comp name
+    function getCurrentCompName(doc) {
+        // default to 1
+        var compName = "1";
+
+        // if comps exist
+        if (doc.comps) {
+            // find current
+            doc.comps.forEach(function(comp) {
+                if (comp.applied) {
+                    compName = comp.name;
+                }
+            });
+        }
+        return compName;
+    }
+
     exports.init = init;
 
-    // Unit test function exports
-    exports._setConfig = function (config) { _config = config; };
-    
 }());

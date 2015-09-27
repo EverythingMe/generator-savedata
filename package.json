@@ -1,20 +1,17 @@
 {
-  "name": "generator-getting-started",
+  "name": "generator-savedata",
   "version": "1.0.0",
-  "description": "Getting started Adobe Generator",
+  "description": "Save document data generator",
   "main": "main.js",
-  "generator-core-version": "~2",
+  "generator-core-version": ">=2",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tomkrcha/generator-getting-started"
+    "url": "https://github.com/EverythingMe/generator-savedata.git"
   },
-  "license": "Public Domain",
+  "author": "EverythingMe, Ran Byron",
+  "license": "MIT",
   "readmeFilename": "README.md",
-  "scripts": {
-    "test": "grunt test"
-  },
-  "dependencies": {
-  },
-  "devDependencies": {
-  }
+  "scripts": {},
+  "dependencies": {},
+  "devDependencies": {}
 }
